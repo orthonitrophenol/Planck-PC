@@ -19,7 +19,7 @@ class Home(Page):
         w = self.widget
         l = self.layout
         w.setWindowTitle("Planck | Home")
-
+        self.update_theme()
 
         tlayout = self.title_layout()
         self.layout.addLayout(tlayout)

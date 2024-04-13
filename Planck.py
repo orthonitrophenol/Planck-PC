@@ -1,11 +1,12 @@
 import sys
+import json
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from web import HTTP
-from pages import Home, Feed, Login, Register
+from pages import Home, Feed, Login, Register, Settings
 
 class Applciation:
 
@@ -18,13 +19,15 @@ class Applciation:
         self.widget.setWindowTitle("Planck")
         self.layout = QVBoxLayout()
         self.widget.setLayout(self.layout)
+        with open("cache.json",'r') as c:
+            self.theme = json.load(c).get('theme',0) # 0: light, 1: dark
         self.pages = {
             "home": Home(self),
             "feed" : Feed(self),
             "login": Login(self),
             "register": Register(self),
+            "settings": Settings(self),
         }
-        self.theme = 0 # 0: light, 1: dark
 
 
     @property

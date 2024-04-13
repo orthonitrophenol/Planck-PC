@@ -27,6 +27,7 @@ class Feed(Page):
         w = self.widget
         l = self.layout
         w.setWindowTitle("Planck | Feed")
+        self.update_theme()
         tlayout = self.title_layout()
         self.layout.addLayout(tlayout)
 

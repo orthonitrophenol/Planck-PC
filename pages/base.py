@@ -20,7 +20,7 @@ class Page:
         self.widget.setLayout(self.layout)
     
 
-    def image(self, path: str, callback=None):
+    def image(self, pc: str, callback=None, content = False):
         """Display an image on the page.
 
         Parameters
@@ -34,11 +34,11 @@ class Page:
             Tuple containing the QPushButton and QPixmap objects.
         """
         button = QPushButton()
-        if path.startswith(("http://", "https://")):
+        if content == True:
             pixmap = QPixmap()
-            pixmap.loadFromData(self.app.http.get(path).content)
+            pixmap.loadFromData(pc)
         else:
-            pixmap = QPixmap(path)
+            pixmap = QPixmap(pc)
         button.setIcon(QIcon(pixmap))
         button.setIconSize(pixmap.rect().size())
         if callback:
@@ -56,16 +56,25 @@ class Page:
         ibut.setIconSize(QSize(icon_size, icon_size))
         ibut.setStyleSheet("border: none;")
 
-        purl = self.app.http.account['pfp'] if self.app.http.account else self.app.icon_path
-        profile_button, profile_pixmap = self.image(purl, lambda: self.open_page("profile"))
-        profile_button.setIconSize(QSize(icon_size, icon_size))
-        profile_button.setStyleSheet("border: none;")
-
         layout = QHBoxLayout()
         layout.addWidget(ibut)
         layout.addWidget(title)
         layout.addStretch(1)
-        layout.addWidget(profile_button)
+
+        acc = self.app.http.account
+        if acc:
+            if len(acc['pfp']) > 0:
+                purl = 'cdn/pfp/' + acc['pfp']
+                p = self.app.http.fetch_image(purl)
+                profile_button, _ = self.image(p, lambda: self.open_page("profile"), content=True)
+                pixmap = QPixmap()
+                pixmap.loadFromData(p)  # Use loadFromData instead of fromImage
+                profile_button.setIcon(QIcon(pixmap))  # Use the QPixmap object here
+            else:
+                profile_button, _ = self.image(self.app.icon_path, lambda: self.open_page("profile"))
+            profile_button.setIconSize(QSize(icon_size, icon_size))
+            profile_button.setStyleSheet("border: none;")
+            layout.addWidget(profile_button)
 
         return layout
 
@@ -73,14 +82,35 @@ class Page:
         layout = QHBoxLayout()
         layout.addStretch(1)
         op = lambda page: (lambda: self.open_page(page))
-        for page in self.app.pages:
-            button = QPushButton(page.capitalize())
-            button.clicked.connect(op(page))
-            button.setStyleSheet("border: none;")
-            button.setFont(QFont('Arial', 15))
-            layout.addWidget(button)
+        if self.app.http.account:
+            for page in ('home', 'feed', 'profile', 'settings'):
+                button = QPushButton(page.capitalize())
+                button.clicked.connect(op(page))
+                button.setStyleSheet("border: none;")
+                button.setFont(QFont('Arial', 15))
+                layout.addWidget(button)
+                layout.addStretch(1)
+            lb = QPushButton("Logout")
+            lb.clicked.connect(lambda: self.app.http.logout(self.app.http.account['api_key']))
+            lb.setStyleSheet("border: none;")
+            lb.setFont(QFont('Arial', 15))
+            layout.addWidget(lb)
             layout.addStretch(1)
+        else:
+            for page in ('home', 'login', 'register'):
+                button = QPushButton(page.capitalize())
+                button.clicked.connect(op(page))
+                button.setStyleSheet("border: none;")
+                button.setFont(QFont('Arial', 15))
+                layout.addWidget(button)
+                layout.addStretch(1)
         return layout
+
+    def update_theme(self):
+        if self.app.theme == 1:
+            self.widget.setStyleSheet("background-color: #333; color: #fff;")
+        else:
+            self.widget.setStyleSheet("background-color: #fff; color: #000;")
 
     def open_page(self, page: str):
         """Open a page.
@@ -118,8 +148,5 @@ class Page:
         """
         l = self.layout
         self.clear_layout(l)
-        self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.AlignTop)
-        self.widget.setLayout(self.layout)
         self.window()
 

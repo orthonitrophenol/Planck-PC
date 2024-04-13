@@ -29,7 +29,7 @@ class Login(Page):
             self.app.http.accounts[u['api_key']] = u
             self.app.http.account = u
             with open("cache.json", "w") as f:
-                json.dump({"accounts": self.app.http.accounts, "account": u}, f)
+                json.dump({"accounts": self.app.http.accounts, "account": u, "theme": self.app.theme}, f)
             self.open_page("home")
 
     def login_layout(self):
@@ -58,6 +58,12 @@ class Login(Page):
         login_button.setFixedWidth(200)
         login_layout.addWidget(login_button,  alignment=Qt.AlignCenter)
 
+        register_button = QPushButton('Register Instead')
+        register_button.clicked.connect(lambda: self.open_page("register"))
+        register_button.setFixedWidth(200)
+        register_button.setStyleSheet("border: none;")
+        login_layout.addWidget(register_button,  alignment=Qt.AlignCenter)
+
         return login_layout
 
     def toggle_password_visibility(self, password_input, checkbox):
@@ -70,11 +76,13 @@ class Login(Page):
         w = self.widget
         l = self.layout  # Create a QVBoxLayout instance
         w.setWindowTitle("Planck | Login")
+        self.update_theme()
 
         tlayout = self.title_layout()
         l.addLayout(tlayout)
 
         login_layout = self.login_layout()
+        l.addStretch(1)
         l.addLayout(login_layout)
 
         nav_layout = self.nav_layout()
