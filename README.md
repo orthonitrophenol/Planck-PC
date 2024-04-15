@@ -8,5 +8,4 @@
 
 # To run the program
 
-- Downloadd the repository.
-- Run the `Planck.exe` file in the `builds/` directory.
+- Download the installer from `downloads/Planck Installer.exe`
