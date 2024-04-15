@@ -12,7 +12,7 @@ class Home(Page):
     """
     NAME = "home"
 
-    def window(
+    async def window(
         self,
     ):
 
@@ -21,10 +21,10 @@ class Home(Page):
         w.setWindowTitle("Planck | Home")
         self.update_theme()
 
-        tlayout = self.title_layout()
+        tlayout = await self.title_layout()
         self.layout.addLayout(tlayout)
 
-        nav_layout = self.nav_layout()
+        nav_layout = await self.nav_layout()
         l.addStretch(1)
         l.addLayout(nav_layout)
 

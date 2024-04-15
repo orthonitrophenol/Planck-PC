@@ -1,24 +1,30 @@
-from typing import TYPE_CHECKING
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict
 from collections import OrderedDict
 
 import json
-import requests
+import asyncio
+import aiohttp
 import base64
 
 if TYPE_CHECKING:
-    from Planck import Application
+    from Planck import Application, QEventLoop
 
 
 class HTTP:
     BASE = "https://c993213a-d982-4150-af94-01b86eca2c51-00-3gwqcj5yvvulu.janeway.replit.dev/api"
+    session: aiohttp.ClientSession
+    temp: Dict[str, Temp]
 
     def __init__(self, app):
         self.app: Application = app
+        self.loop: QEventLoop = app.loop
+        self.started = asyncio.Event()
         with open("cache.json", "r") as f:
             j = json.load(f)
             self.accounts = j.get("accounts", {})
             self.account = j.get("account", None)
-        self.session = requests.Session()
         self.temp = {
             'pfp': Temp(30),
             'account': Temp(30)
@@ -28,54 +34,59 @@ class HTTP:
         with open("cache.json", "w") as f:
             json.dump({"accounts": self.accounts, "account": self.account, "theme": self.app.theme}, f)
 
-    def request(self, endpoint, method, **kwargs):
+    async def request(self, method, endpoint, **kwargs) -> aiohttp.ClientResponse:
+        await self.started.wait()
         url = f"{self.BASE}/{endpoint}"
         if len(self.accounts) > 0:
-            kwargs["headers"] = {
-                "x-api-key": self.account['api_key']
-            }
-        response = self.session.request(method, url, **kwargs)
-        return response
+            h = kwargs['headers'] if 'headers' in kwargs else {}
+            h["x-api-key"] = h.get('api_key', self.account['api_key'])
+            kwargs['headers'] = h
+            
+        async with self.session.request(method, url, **kwargs) as response:
+            if response.status == 200:
+                ct = response.content_type
+                if ct == "application/json":
+                    return await response.json()
+                else:
+                    return await response.content.read()
 
-    def fetch_image(self, url, endpoint=True) -> bytes | None:
+    async def fetch_image(self, url, endpoint=True) -> bytes | None:
         if endpoint:
             if url.startswith("cdn"):
                 e = url.split("/")
                 if e[1] == "pfp":
                     if e[2] not in self.temp["pfp"]:
-                        ret = self.request(url, "GET")
-                        if ret.status_code == 200:
-                            self.temp["pfp"][e[2]] = ret.content
+                        ret = await self.request("GET", url)
+                        if ret:
+                            self.temp["pfp"][e[2]] = ret
                         else:
                             return None
                     return self.temp["pfp"][e[2]]
         else:
-            ret = self.session.get(url)
+            ret = await self.session.get(url)
             if ret.status_code == 200:
-                return ret.content
-            else:
-                return None
+                return await ret.content.read()
 
-    def fetch_account(self, username) -> dict | None:
-        d = self.request(f"accounts/{username}", "GET")
 
-    def login(self, username_or_email, password):
+    async def fetch_account(self, username) -> dict | None:
+        return await self.request("GET", f"accounts/{username}")
+
+    async def search_accounts(self, query) -> dict | None:
+        return await self.request("GET", f"accounts/search/{query}")
+
+    async def login(self, username_or_email, password) -> dict | bool:
         data = {
             "username_or_email": username_or_email,
             "password": password
         }
-        ret = self.request("accounts/login", "POST", json=data)
-        if ret.status_code == 200:
-            rj = ret.json()
-            return rj
-        else:
-            return False
+        return await self.request("POST", "accounts/login", json=data)
 
-    def logout(self, api_key):
-        self.accounts.pop(self.account)
-        self.account = self.accounts.values()[0] if len(self.accounts) > 0 else None
+    def logout(self):
+        self.accounts.pop(self.account['api_key'])
+        self.account = None
+        self.update_cache()
 
-    def register(self, username, name, password, email, birthdate):
+    async def register(self, username, name, password, email, birthdate):
 
         data = {
             "username": username,
@@ -84,14 +95,9 @@ class HTTP:
             "email": email,
             "birthdate": birthdate.isoformat(),
         }
-        ret = self.request("accounts/create", "POST", json=data)
-        if ret.status_code == 200:
-            rj = ret.json()
-            return rj
-        else:
-            return False
+        return await self.request("POST", "accounts/create", json=data)
 
-    def update_account(self, username, name, password, email, birthdate, pfp):
+    async def update_account(self, username, name, password, email, birthdate, pfp):
         if pfp:
             with open(pfp, "rb") as f:
                 pfp = [pfp.split("/")[-1], base64.b64encode(f.read()).decode()]
@@ -103,19 +109,27 @@ class HTTP:
             "birthdate": birthdate.isoformat(),
             "pfp": pfp
         }
-        ret = self.request("accounts/update", "POST", json=data)
-        if ret.status_code == 200:
-            rj = ret.json()
-            return rj
-        else:
-            return False
+        return await self.request("POST", "accounts/update", json=data)
 
-    def switch_account(
-        self, api_key
+    async def switch_account(
+        self, api_key: str
     ):
-        self.account = self.accounts[api_key]
+        self.account = a = await self.request("GET", f"accounts/me", headers={"x-api-key": api_key})
+        self.accounts[a]['api_key'] = api_key
         self.update_cache()
-        self.app.pages["home"].open_page("home")
+        await self.app.pages["home"].open_page("home")
+
+
+    async def start(self):
+        self.session = aiohttp.ClientSession()
+        self.started.set()
+        u = await self.request("GET", "accounts/me")
+
+        if u:
+            self.account = u
+            self.accounts[u['api_key']] = u
+            self.update_cache()
+
 
 class Temp(OrderedDict):
 

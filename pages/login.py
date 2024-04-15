@@ -9,6 +9,7 @@ from .base import Page
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from qasync import asyncSlot
 
 class Login(Page):
     """The login page.
@@ -22,15 +23,18 @@ class Login(Page):
         super().__init__(app)
 
     def login(self):
-        username = self.username_input.text()
-        password = self.password_input.text()
-        u = self.app.http.login(username, password)
-        if u:
-            self.app.http.accounts[u['api_key']] = u
-            self.app.http.account = u
-            with open("cache.json", "w") as f:
-                json.dump({"accounts": self.app.http.accounts, "account": u, "theme": self.app.theme}, f)
-            self.open_page("home")
+        async def _internal():
+            username = self.username_input.text()
+            password = self.password_input.text()
+            u = await self.app.http.login(username, password)
+            if u:
+                self.app.http.accounts[u['api_key']] = u
+                self.app.http.account = u
+                with open("cache.json", "w") as f:
+                    json.dump({"accounts": self.app.http.accounts, "account": u, "theme": self.app.theme}, f)
+                self.clear_layout()
+                await self.app.pages['home'].window()
+        self.app.loop.create_task(_internal())
 
     def login_layout(self):
         login_layout = QVBoxLayout()
@@ -72,20 +76,20 @@ class Login(Page):
         else:
             password_input.setEchoMode(QLineEdit.Password)
 
-    def window(self):
+    async def window(self):
         w = self.widget
         l = self.layout  # Create a QVBoxLayout instance
         w.setWindowTitle("Planck | Login")
         self.update_theme()
 
-        tlayout = self.title_layout()
+        tlayout = await self.title_layout()
         l.addLayout(tlayout)
 
         login_layout = self.login_layout()
         l.addStretch(1)
         l.addLayout(login_layout)
 
-        nav_layout = self.nav_layout()
+        nav_layout = await self.nav_layout()
         l.addStretch(1)
         l.addLayout(nav_layout)
 

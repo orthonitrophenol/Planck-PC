@@ -9,6 +9,7 @@ from .base import Page
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from qasync import asyncSlot
 
 class Register(Page):
     """The register page.
@@ -21,20 +22,24 @@ class Register(Page):
     ):
         super().__init__(app)
 
+
     def register(self):
-        u = self.app.http.register(
-            self.username_input.text(),
-            self.name_input.text(),
-            self.password_input.text(),
-            self.email_input.text(),
-            self.birthdate_input.date().toPyDate(),
-        )
-        if u:
-            self.app.http.accounts[u['api_key']] = u
-            self.app.http.account = u
-            with open("cache.json", "w") as f:
-                json.dump({"accounts": self.app.http.accounts, "account": u, "theme": self.app.theme}, f)
-            self.open_page("home")
+        async def _internal():
+            u = await self.app.http.register(
+                self.username_input.text(),
+                self.name_input.text(),
+                self.password_input.text(),
+                self.email_input.text(),
+                self.birthdate_input.date().toPyDate(),
+            )
+            if u:
+                self.app.http.accounts[u['api_key']] = u
+                self.app.http.account = u
+                with open("cache.json", "w") as f:
+                    json.dump({"accounts": self.app.http.accounts, "account": u, "theme": self.app.theme}, f)
+                await self.clear_layout(self.layout)
+                await self.app.pages['home'].window()
+        self.app.loop.create_task(_internal())
 
     def toggle_password_visibility(self, password_input, checkbox):
         if checkbox.isChecked():
@@ -96,19 +101,19 @@ class Register(Page):
         return register_layout
 
 
-    def window(self):
+    async def window(self):
         w = self.widget
         l = self.layout  # Create a QVBoxLayout instance
         w.setWindowTitle("Planck | register")
         self.update_theme()
 
-        tlayout = self.title_layout()
+        tlayout = await self.title_layout()
         l.addLayout(tlayout)
 
         register_layout = self.register_layout()
         l.addLayout(register_layout)
 
-        nav_layout = self.nav_layout()
+        nav_layout = await self.nav_layout()
         l.addStretch(1)
         l.addLayout(nav_layout)
 

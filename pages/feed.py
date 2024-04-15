@@ -20,7 +20,7 @@ class Feed(Page):
         super().__init__(app)
         self.posts: List[Dict[str, Any]] = []
 
-    def window(
+    async def window(
         self,
     ):
 
@@ -28,10 +28,10 @@ class Feed(Page):
         l = self.layout
         w.setWindowTitle("Planck | Feed")
         self.update_theme()
-        tlayout = self.title_layout()
+        tlayout = await self.title_layout()
         self.layout.addLayout(tlayout)
 
-        nav_layout = self.nav_layout()
+        nav_layout = await self.nav_layout()
         l.addStretch(1)
         l.addLayout(nav_layout)
 
