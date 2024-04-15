@@ -35,8 +35,7 @@ class Register(Page):
             if u:
                 self.app.http.accounts[u['api_key']] = u
                 self.app.http.account = u
-                with open("cache.json", "w") as f:
-                    json.dump({"accounts": self.app.http.accounts, "account": u, "theme": self.app.theme}, f)
+                self.app.http.update_cache()
                 await self.clear_layout(self.layout)
                 await self.app.pages['home'].window()
         self.app.loop.create_task(_internal())

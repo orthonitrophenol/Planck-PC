@@ -15,7 +15,7 @@ class Application:
     def __init__(
         self
     ):
-        self.geo = (0, 0, 1280, 720)
+        self.geo = (0, 0, 1280, 750)
     
         self.qapp = QApplication(sys.argv)
         self.loop = QEventLoop(self.qapp)

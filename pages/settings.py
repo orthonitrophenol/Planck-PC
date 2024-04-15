@@ -34,8 +34,7 @@ class Settings(Page):
             if self.app.theme != theme:
                 self.app.theme = theme
                 await self.reload()
-                with open("cache.json", "w") as f:
-                    self.app.http.update_cache()
+                self.app.http.update_cache()
             if not (len(uname) ==  len(name) == len(pword) == len(email) == len(pfp) == 0) or birthdate.isoformat() != self.app.http.account['birthdate']:
                 u = await self.app.http.update_account(
                     uname if len(uname) > 0 else None,
@@ -50,7 +49,7 @@ class Settings(Page):
                     self.app.http.account = u
                     self.app.http.update_cache()
                     await self.clear_layout(self.layout)
-                    await self.app['home'].window()
+                    await self.app.pages['home'].window()
         self.app.loop.create_task(_internal())
 
     def change_theme(self):
