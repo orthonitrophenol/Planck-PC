@@ -146,7 +146,11 @@ class Page:
                 layout.addStretch(1)
             lb = QPushButton("Logout")
             lb.setStyleSheet(self.get_css("submit_button"))
-            lb.clicked.connect(self.app.http.logout)
+            async def logout():
+                self.app.http.logout()
+                await self.clear_layout(self.layout)
+                await self.app.pages['home'].window()
+            lb.clicked.connect(lambda: self.loop.create_task(logout()))
             lb.setFont(QFont('Arial', 20))
             layout.addWidget(lb)
             layout.addStretch(1)
